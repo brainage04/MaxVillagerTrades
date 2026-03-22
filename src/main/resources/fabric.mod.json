@@ -3,7 +3,7 @@
 	"id": "maxlibrariantrades",
 	"version": "${version}",
 	"name": "MaxLibrarianTrades",
-	"description": "A server-side mod that guarantees max-level books from Librarian trades.",
+	"description": "A server-side mod that guarantees max-level enchantments on villager trade outputs.",
 	"authors": [
 		"brainage04"
 	],
