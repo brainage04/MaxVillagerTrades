@@ -7,4 +7,4 @@ assuming that the added enchantments are implemented correctly.
 
 Existing trades that have been used at least once will not be affected,
 only trades that generate from unemployed villagers that become Librarians,
-or from Librarins that level up and offer new Enchanted Book trades.
+or from Librarians that level up and offer new Enchanted Book trades.
