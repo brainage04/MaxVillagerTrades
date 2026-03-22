@@ -1,19 +1,17 @@
 package io.github.brainage04;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.fabricmc.api.ModInitializer;
-
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.ItemEnchantmentsComponent;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.village.TradeOffer;
-import net.minecraft.village.TradeOffers;
-import net.minecraft.village.VillagerProfession;
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.entity.npc.villager.VillagerTrades;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.item.trading.MerchantOffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,35 +22,32 @@ public class MaxLibrarianTrades implements ModInitializer {
 	public static final String MOD_NAME = "MaxLibrarianTrades";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-	private static TradeOffers.Factory createMaxEnchWrapper(TradeOffers.Factory original) {
-		return (entity, random) -> {
-			TradeOffer offer = original.create(entity, random);
+	private static VillagerTrades.ItemListing createMaxEnchWrapper(VillagerTrades.ItemListing original) {
+		return (level, entity, random) -> {
+			MerchantOffer offer = original.getOffer(level, entity, random);
 			if (offer == null) return null;
 
-			ItemStack result = offer.getSellItem().copy();
+			ItemStack result = offer.getResult().copy();
 			if (result.getItem() == Items.ENCHANTED_BOOK) {
-				// get stored enchantments
-				ItemEnchantmentsComponent before = result.getComponents().get(DataComponentTypes.STORED_ENCHANTMENTS);
-				if (before == null) return null;
+				ItemEnchantments before = result.getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY);
+				if (before.isEmpty()) return offer;
 
-				// create hashmap for enchantment registry entries and levels
-				Object2IntOpenHashMap<RegistryEntry<Enchantment>> enchantments = new Object2IntOpenHashMap<>();
-				for (RegistryEntry<Enchantment> enchantmentRegistryEntry : before.getEnchantments()) {
-					enchantments.put(enchantmentRegistryEntry, enchantmentRegistryEntry.value().getMaxLevel());
+				ItemEnchantments.Mutable enchantments = new ItemEnchantments.Mutable(before);
+				for (Holder<Enchantment> enchantment : before.keySet()) {
+					enchantments.set(enchantment, enchantment.value().getMaxLevel());
 				}
 
-				// create new item enchantments component with populated hashmap and override previous one
-				ItemEnchantmentsComponent after = new ItemEnchantmentsComponent(enchantments);
-				result.components.set(DataComponentTypes.STORED_ENCHANTMENTS, after);
+				result.set(DataComponents.STORED_ENCHANTMENTS, enchantments.toImmutable());
 
-				offer = new TradeOffer(
-						offer.getFirstBuyItem(),
-						offer.getSecondBuyItem(),
+				offer = new MerchantOffer(
+						offer.getItemCostA(),
+						offer.getItemCostB(),
 						result,
 						offer.getUses(),
 						offer.getMaxUses(),
-						offer.getMerchantExperience(),
-						offer.getPriceMultiplier()
+						offer.getXp(),
+						offer.getPriceMultiplier(),
+						offer.getDemand()
 				);
 			}
 
@@ -61,18 +56,17 @@ public class MaxLibrarianTrades implements ModInitializer {
 	}
 
 	private static void overrideVillagerTradeOffers() {
-		Map<RegistryKey<VillagerProfession>, Int2ObjectMap<TradeOffers.Factory[]>> tradesMap =
-				TradeOffers.PROFESSION_TO_LEVELED_TRADE;
+		Map<ResourceKey<VillagerProfession>, Int2ObjectMap<VillagerTrades.ItemListing[]>> tradesMap = VillagerTrades.TRADES;
 
-		Int2ObjectMap<TradeOffers.Factory[]> librarianLevels = tradesMap.get(VillagerProfession.LIBRARIAN);
+		Int2ObjectMap<VillagerTrades.ItemListing[]> librarianLevels = tradesMap.get(VillagerProfession.LIBRARIAN);
 		if (librarianLevels == null) return;
 
 		for (int level : librarianLevels.keySet()) {
-			TradeOffers.Factory[] originalFactories = librarianLevels.get(level);
-			TradeOffers.Factory[] wrappedFactories = new TradeOffers.Factory[originalFactories.length];
+			VillagerTrades.ItemListing[] originalFactories = librarianLevels.get(level);
+			VillagerTrades.ItemListing[] wrappedFactories = new VillagerTrades.ItemListing[originalFactories.length];
 
 			for (int i = 0; i < originalFactories.length; i++) {
-				TradeOffers.Factory original = originalFactories[i];
+				VillagerTrades.ItemListing original = originalFactories[i];
 				wrappedFactories[i] = createMaxEnchWrapper(original);
 			}
 
