@@ -10,3 +10,11 @@ correctly.
 Existing trades that have been used at least once will not be affected,
 only newly generated villager trades and new trades unlocked when villagers
 level up.
+
+# Gamerules
+Two boolean gamerules control the behavior:
+
+- `max_enchanted_book_trades` toggles max-level stored enchantments on enchanted books.
+- `max_enchanted_item_trades` toggles max-level regular enchantments on enchanted items.
+
+Both default to `true`.

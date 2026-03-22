@@ -2,7 +2,9 @@ package io.github.brainage04;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import net.fabricmc.api.ModInitializer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.Holder;
+import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.Identifier;
@@ -13,26 +15,29 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.level.gamerules.GameRule;
+import net.minecraft.world.level.gamerules.GameRuleCategory;
+import net.minecraft.world.level.gamerules.GameRules;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
-public class MaxLibrarianTrades implements ModInitializer {
-	public static final String MOD_ID = "maxlibrariantrades";
-	public static final String MOD_NAME = "MaxLibrarianTrades";
+public class MaxVillagerTrades implements ModInitializer {
+	public static final String MOD_ID = "maxvillagertrades";
+	public static final String MOD_NAME = "MaxVillagerTrades";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-	private static final List<ResourceKey<VillagerProfession>> TRACKED_PROFESSIONS = List.of(
-			VillagerProfession.LIBRARIAN,
-			VillagerProfession.ARMORER,
-			VillagerProfession.TOOLSMITH,
-			VillagerProfession.WEAPONSMITH
-	);
+	public static final GameRule<Boolean> MAX_ENCHANTED_BOOK_TRADES = registerBooleanGameRule("max_enchanted_book_trades", true);
+	public static final GameRule<Boolean> MAX_ENCHANTED_ITEM_TRADES = registerBooleanGameRule("max_enchanted_item_trades", true);
 
 	record TradeContext(ResourceKey<VillagerProfession> profession, int villagerLevel, int tradeIndex) {
 		private String professionName() {
@@ -74,7 +79,12 @@ public class MaxLibrarianTrades implements ModInitializer {
 
 		@Override
 		public MerchantOffer getOffer(net.minecraft.server.level.ServerLevel level, net.minecraft.world.entity.Entity entity, net.minecraft.util.RandomSource random) {
-			TradeModification modification = maximizeTradeOffer(original.getOffer(level, entity, random), context);
+			TradeModification modification = maximizeTradeOffer(
+					original.getOffer(level, entity, random),
+					context,
+					level.getGameRules().get(MAX_ENCHANTED_BOOK_TRADES),
+					level.getGameRules().get(MAX_ENCHANTED_ITEM_TRADES)
+			);
 			if (modification.modified()) {
 				LOGGER.info(buildTradeModificationLog(context, modification.changes()));
 			}
@@ -83,6 +93,10 @@ public class MaxLibrarianTrades implements ModInitializer {
 	}
 
 	static TradeModification maximizeTradeOffer(MerchantOffer offer, TradeContext context) {
+		return maximizeTradeOffer(offer, context, true, true);
+	}
+
+	static TradeModification maximizeTradeOffer(MerchantOffer offer, TradeContext context, boolean maxBookTrades, boolean maxItemTrades) {
 		if (offer == null) {
 			return new TradeModification(null, List.of());
 		}
@@ -90,8 +104,12 @@ public class MaxLibrarianTrades implements ModInitializer {
 		ItemStack result = offer.getResult().copy();
 		List<EnchantmentChange> changes = new ArrayList<>();
 
-		maximizeEnchantments(result, DataComponents.STORED_ENCHANTMENTS, changes);
-		maximizeEnchantments(result, DataComponents.ENCHANTMENTS, changes);
+		if (maxBookTrades) {
+			maximizeEnchantments(result, DataComponents.STORED_ENCHANTMENTS, changes);
+		}
+		if (maxItemTrades) {
+			maximizeEnchantments(result, DataComponents.ENCHANTMENTS, changes);
+		}
 
 		if (changes.isEmpty()) {
 			return new TradeModification(offer, List.of());
@@ -117,6 +135,60 @@ public class MaxLibrarianTrades implements ModInitializer {
 				offer.getPriceMultiplier(),
 				offer.getDemand()
 		);
+	}
+
+	@SuppressWarnings("unchecked")
+	private static GameRule<Boolean> registerBooleanGameRule(String name, boolean defaultValue) {
+		Optional<GameRule<?>> existingRule = BuiltInRegistries.GAME_RULE.getOptional(Identifier.withDefaultNamespace(name));
+		if (existingRule.isPresent()) {
+			return (GameRule<Boolean>) existingRule.get();
+		}
+
+		try {
+			Method registerBoolean = GameRules.class.getDeclaredMethod("registerBoolean", String.class, GameRuleCategory.class, boolean.class);
+			registerBoolean.setAccessible(true);
+			return (GameRule<Boolean>) registerBoolean.invoke(null, name, GameRuleCategory.MOBS, defaultValue);
+		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException exception) {
+			Throwable cause = exception instanceof InvocationTargetException ? exception.getCause() : exception;
+			if (cause instanceof IllegalStateException illegalState && illegalState.getMessage() != null && illegalState.getMessage().contains("Registry is already frozen")) {
+				return registerBooleanGameRuleAfterUnfreezing(name, defaultValue, illegalState);
+			}
+			throw new IllegalStateException("Failed to register gamerule " + name, exception);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private static GameRule<Boolean> registerBooleanGameRuleAfterUnfreezing(String name, boolean defaultValue, IllegalStateException originalException) {
+		try {
+			Method registerBoolean = GameRules.class.getDeclaredMethod("registerBoolean", String.class, GameRuleCategory.class, boolean.class);
+			registerBoolean.setAccessible(true);
+
+			Field frozenField = MappedRegistry.class.getDeclaredField("frozen");
+			frozenField.setAccessible(true);
+			Method bindValue = net.minecraft.core.Holder.Reference.class.getDeclaredMethod("bindValue", Object.class);
+			bindValue.setAccessible(true);
+			Method bindTags = net.minecraft.core.Holder.Reference.class.getDeclaredMethod("bindTags", java.util.Collection.class);
+			bindTags.setAccessible(true);
+
+			MappedRegistry<GameRule<?>> gameRuleRegistry = (MappedRegistry<GameRule<?>>) BuiltInRegistries.GAME_RULE;
+			boolean wasFrozen = frozenField.getBoolean(gameRuleRegistry);
+			frozenField.setBoolean(gameRuleRegistry, false);
+			try {
+				GameRule<Boolean> registeredRule = (GameRule<Boolean>) registerBoolean.invoke(null, name, GameRuleCategory.MOBS, defaultValue);
+				net.minecraft.core.Holder.Reference<GameRule<?>> holder = BuiltInRegistries.GAME_RULE
+						.get(Identifier.withDefaultNamespace(name))
+						.orElseThrow(() -> new IllegalStateException("Missing holder for gamerule " + name));
+				bindValue.invoke(holder, registeredRule);
+				bindTags.invoke(holder, List.of());
+				return registeredRule;
+			} finally {
+				if (wasFrozen) {
+					frozenField.setBoolean(gameRuleRegistry, true);
+				}
+			}
+		} catch (NoSuchMethodException | NoSuchFieldException | IllegalAccessException | InvocationTargetException exception) {
+			throw new IllegalStateException("Failed to register frozen gamerule " + name, originalException);
+		}
 	}
 
 	private static void maximizeEnchantments(
@@ -148,15 +220,19 @@ public class MaxLibrarianTrades implements ModInitializer {
 		}
 	}
 
-	private static void overrideVillagerTradeOffers(Map<ResourceKey<VillagerProfession>, Int2ObjectMap<VillagerTrades.ItemListing[]>> tradesMap) {
-		for (ResourceKey<VillagerProfession> profession : TRACKED_PROFESSIONS) {
-			Int2ObjectMap<VillagerTrades.ItemListing[]> professionLevels = tradesMap.get(profession);
+	static void overrideVillagerTradeOffers(Map<ResourceKey<VillagerProfession>, Int2ObjectMap<VillagerTrades.ItemListing[]>> tradesMap) {
+		for (Map.Entry<ResourceKey<VillagerProfession>, Int2ObjectMap<VillagerTrades.ItemListing[]>> professionEntry : tradesMap.entrySet()) {
+			ResourceKey<VillagerProfession> profession = professionEntry.getKey();
+			Int2ObjectMap<VillagerTrades.ItemListing[]> professionLevels = professionEntry.getValue();
 			if (professionLevels == null) {
 				continue;
 			}
 
 			for (int level : professionLevels.keySet()) {
 				VillagerTrades.ItemListing[] originalFactories = professionLevels.get(level);
+				if (originalFactories == null) {
+					continue;
+				}
 				VillagerTrades.ItemListing[] wrappedFactories = Arrays.copyOf(originalFactories, originalFactories.length);
 
 				for (int i = 0; i < originalFactories.length; i++) {

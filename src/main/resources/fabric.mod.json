@@ -1,9 +1,9 @@
 {
 	"schemaVersion": 1,
-	"id": "maxlibrariantrades",
+	"id": "maxvillagertrades",
 	"version": "${version}",
-	"name": "MaxLibrarianTrades",
-	"description": "A server-side mod that guarantees max-level enchantments on villager trade outputs.",
+	"name": "MaxVillagerTrades",
+	"description": "A server-side mod that guarantees max-level enchantments on villager trade outputs, with separate gamerules for books and items.",
 	"authors": [
 		"brainage04"
 	],
@@ -12,11 +12,11 @@
 		"sources": "https://github.com/brainage04/MaxLibrarianTrades"
 	},
 	"license": "MIT",
-	"icon": "assets/maxlibrariantrades/icon.png",
+	"icon": "assets/maxvillagertrades/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"io.github.brainage04.MaxLibrarianTrades"
+			"io.github.brainage04.MaxVillagerTrades"
 		]
 	},
 	"depends": {
