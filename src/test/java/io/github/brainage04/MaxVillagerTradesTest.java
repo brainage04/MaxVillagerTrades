@@ -7,6 +7,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -293,7 +294,7 @@ class MaxVillagerTradesTest {
 		Enchantment enchantment = new Enchantment(
 				Component.literal("Test " + path),
 				Enchantment.definition(
-						HolderSet.direct(Item::builtInRegistryHolder, supportedItems),
+						HolderSet.direct(BuiltInRegistries.ITEM::wrapAsHolder, supportedItems),
 						1,
 						maxLevel,
 						Enchantment.constantCost(1),
