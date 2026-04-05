@@ -4,14 +4,19 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.data.registries.VanillaRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.entity.npc.villager.VillagerTrades;
+import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.flag.FeatureFlags;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -179,6 +184,54 @@ class MaxVillagerTradesTest {
 		assertEquals("WrappedTradeListing", trades.get(customProfession).get(2)[0].getClass().getSimpleName());
 	}
 
+	@Test
+	void maximizesCustomStoredEnchantmentsForCustomProfessionTrade() {
+		ResourceKey<VillagerProfession> customProfession = ResourceKey.create(
+				net.minecraft.core.registries.Registries.VILLAGER_PROFESSION,
+				Identifier.parse("testmod:sage")
+		);
+		Holder<Enchantment> customEnchantment = customEnchantment("sage_wisdom", 4, Items.BOOK);
+		ItemStack book = EnchantmentHelper.createBook(new EnchantmentInstance(customEnchantment, 1));
+		MerchantOffer offer = new MerchantOffer(
+				new ItemCost(Items.EMERALD, 18),
+				Optional.of(new ItemCost(Items.BOOK)),
+				book,
+				12,
+				1,
+				0.2F
+		);
+
+		MaxVillagerTrades.TradeModification modification = MaxVillagerTrades.maximizeTradeOffer(
+				offer,
+				new MaxVillagerTrades.TradeContext(customProfession, 3, 1)
+		);
+
+		ItemEnchantments stored = modification.offer().getResult().getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY);
+		assertEquals(customEnchantment.value().getMaxLevel(), stored.getLevel(customEnchantment));
+		assertTrue(modification.modified());
+	}
+
+	@Test
+	void maximizesCustomItemEnchantmentsForCustomProfessionTrade() {
+		ResourceKey<VillagerProfession> customProfession = ResourceKey.create(
+				net.minecraft.core.registries.Registries.VILLAGER_PROFESSION,
+				Identifier.parse("testmod:sage")
+		);
+		Holder<Enchantment> customEnchantment = customEnchantment("sage_edge", 4, Items.DIAMOND_SWORD);
+		ItemStack sword = new ItemStack(Items.DIAMOND_SWORD);
+		sword.enchant(customEnchantment, 1);
+		MerchantOffer offer = new MerchantOffer(new ItemCost(Items.EMERALD, 40), sword, 3, 30, 0.05F);
+
+		MaxVillagerTrades.TradeModification modification = MaxVillagerTrades.maximizeTradeOffer(
+				offer,
+				new MaxVillagerTrades.TradeContext(customProfession, 5, 1)
+		);
+
+		ItemEnchantments applied = modification.offer().getResult().getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
+		assertEquals(customEnchantment.value().getMaxLevel(), applied.getLevel(customEnchantment));
+		assertTrue(modification.modified());
+	}
+
 	private static void assertRegularEnchantedTradeIsMaxed(
 			ResourceKey<VillagerProfession> profession,
 			net.minecraft.world.item.Item item,
@@ -234,5 +287,23 @@ class MaxVillagerTradesTest {
 
 	private static Holder<Enchantment> enchantment(ResourceKey<Enchantment> enchantmentKey) {
 		return vanillaLookup.lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(enchantmentKey);
+	}
+
+	private static Holder<Enchantment> customEnchantment(String path, int maxLevel, Item... supportedItems) {
+		Enchantment enchantment = new Enchantment(
+				Component.literal("Test " + path),
+				Enchantment.definition(
+						HolderSet.direct(Item::builtInRegistryHolder, supportedItems),
+						1,
+						maxLevel,
+						Enchantment.constantCost(1),
+						Enchantment.constantCost(1),
+						1,
+						EquipmentSlotGroup.ANY
+				),
+				HolderSet.empty(),
+				DataComponentMap.EMPTY
+		);
+		return Holder.direct(enchantment);
 	}
 }
