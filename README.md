@@ -1,4 +1,5 @@
 # About
+
 This mod modifies villager trade factories so that all enchantments contained
 within villager trade outputs will always be max level.
 
@@ -12,6 +13,7 @@ only newly generated villager trades and new trades unlocked when villagers
 level up.
 
 # Gamerules
+
 Two boolean gamerules control the behavior:
 
 - `max_enchanted_book_trades` toggles max-level stored enchantments on enchanted books.
