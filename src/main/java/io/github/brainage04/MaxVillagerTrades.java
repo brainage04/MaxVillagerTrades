@@ -67,7 +67,7 @@ public class MaxVillagerTrades implements ModInitializer {
 		}
 	}
 
-	private record WrappedTradeListing(
+	record WrappedTradeListing(
 			VillagerTrades.ItemListing original,
 			TradeContext context
 	) implements VillagerTrades.ItemListing {

@@ -20,13 +20,13 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.item.enchantment.providers.EnchantmentProvider;
 import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.level.gamerules.GameRules;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -115,10 +115,10 @@ class MaxVillagerTradesTest {
 	}
 
 	@Test
-	void vanillaTradePoolsStillContainExpectedBookAndSmithListings() throws ReflectiveOperationException {
+	void vanillaTradePoolsStillContainExpectedBookAndSmithListings() {
 		assertTrue(
 				Arrays.stream(VillagerTrades.TRADES.get(VillagerProfession.LIBRARIAN).get(1))
-						.anyMatch(listing -> listing.getClass().getSimpleName().equals("EnchantBookForEmeralds")),
+						.anyMatch(listing -> listing instanceof VillagerTrades.EnchantBookForEmeralds),
 				"Novice librarians should still have an enchanted book listing"
 		);
 
@@ -157,11 +157,10 @@ class MaxVillagerTradesTest {
 
 		MaxVillagerTrades.overrideVillagerTradeOffers(trades);
 
-		VillagerTrades.ItemListing wrapped = trades.get(customProfession).get(2)[0];
-		assertEquals("WrappedTradeListing", wrapped.getClass().getSimpleName());
+        assertInstanceOf(MaxVillagerTrades.WrappedTradeListing.class, trades.get(customProfession).get(2)[0]);
 
 		MaxVillagerTrades.overrideVillagerTradeOffers(trades);
-		assertEquals("WrappedTradeListing", trades.get(customProfession).get(2)[0].getClass().getSimpleName());
+		assertInstanceOf(MaxVillagerTrades.WrappedTradeListing.class, trades.get(customProfession).get(2)[0]);
 	}
 
 	private static void assertRegularEnchantedTradeIsMaxed(
@@ -180,26 +179,21 @@ class MaxVillagerTradesTest {
 		assertFalse(modification.changes().isEmpty());
 	}
 
-	private static void assertHasEnchantedEquipmentListing(ResourceKey<VillagerProfession> profession) throws ReflectiveOperationException {
+	private static void assertHasEnchantedEquipmentListing(ResourceKey<VillagerProfession> profession) {
 		List<VillagerTrades.ItemListing> listings = List.of(VillagerTrades.TRADES.get(profession).get(5));
 		boolean found = false;
 		for (VillagerTrades.ItemListing listing : listings) {
-			String simpleName = listing.getClass().getSimpleName();
-			if (simpleName.equals("EnchantedItemForEmeralds")) {
+            if (listing instanceof VillagerTrades.EnchantedItemForEmeralds) {
 				found = true;
 				break;
 			}
 
-			if (!simpleName.equals("ItemsForEmeralds")) continue;
+			if (!(listing instanceof VillagerTrades.ItemsForEmeralds itemsForEmeralds)) continue;
 
-			Field enchantmentProvider = listing.getClass().getDeclaredField("enchantmentProvider");
-			enchantmentProvider.setAccessible(true);
-			Optional<?> provider = assertInstanceOf(Optional.class, enchantmentProvider.get(listing));
+			Optional<ResourceKey<EnchantmentProvider>> provider = itemsForEmeralds.enchantmentProvider;
 			if (provider.isEmpty()) continue;
 
-			Field itemStackField = listing.getClass().getDeclaredField("itemStack");
-			itemStackField.setAccessible(true);
-			ItemStack itemStack = assertInstanceOf(ItemStack.class, itemStackField.get(listing));
+			ItemStack itemStack = itemsForEmeralds.itemStack;
 			found = itemStack.is(Items.DIAMOND_CHESTPLATE) || itemStack.is(Items.DIAMOND_SWORD) || itemStack.is(Items.DIAMOND_PICKAXE);
 			if (found) break;
 		}
