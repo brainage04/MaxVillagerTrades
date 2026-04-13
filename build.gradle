@@ -46,6 +46,10 @@ jar {
 	}
 }
 
+loom {
+	accessWidenerPath = file("src/main/resources/maxvillagertrades.accesswidener")
+}
+
 test {
 	useJUnitPlatform()
 }

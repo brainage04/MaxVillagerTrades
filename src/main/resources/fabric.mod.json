@@ -24,5 +24,6 @@
 		"fabricloader": ">=0.18.6",
 		"minecraft": "~1.21.11",
 		"java": ">=21"
-	}
+	},
+	"accessWidener": "maxvillagertrades.accesswidener"
 }
