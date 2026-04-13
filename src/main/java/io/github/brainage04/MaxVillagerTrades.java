@@ -73,7 +73,6 @@ public class MaxVillagerTrades implements ModInitializer {
 			public MerchantOffer getOffer(ServerLevel level, Entity entity, RandomSource random) {
 				TradeModification modification = maximizeTradeOffer(
 						original.getOffer(level, entity, random),
-						context,
 						level.getGameRules().get(MAX_ENCHANTED_BOOK_TRADES),
 						level.getGameRules().get(MAX_ENCHANTED_ITEM_TRADES)
 				);
@@ -84,11 +83,11 @@ public class MaxVillagerTrades implements ModInitializer {
 			}
 		}
 
-	static TradeModification maximizeTradeOffer(MerchantOffer offer, TradeContext context) {
-		return maximizeTradeOffer(offer, context, true, true);
+	static TradeModification maximizeTradeOffer(MerchantOffer offer) {
+		return maximizeTradeOffer(offer, true, true);
 	}
 
-	static TradeModification maximizeTradeOffer(MerchantOffer offer, TradeContext context, boolean maxBookTrades, boolean maxItemTrades) {
+	static TradeModification maximizeTradeOffer(MerchantOffer offer, boolean maxBookTrades, boolean maxItemTrades) {
 		if (offer == null) {
 			return new TradeModification(null, List.of());
 		}

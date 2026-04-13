@@ -1,23 +1,18 @@
 package io.github.brainage04;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.HolderSet;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.registries.VanillaRegistries;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.entity.npc.villager.VillagerTrades;
-import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.flag.FeatureFlags;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -67,10 +62,7 @@ class MaxVillagerTradesTest {
 				0.2F
 		);
 
-		MaxVillagerTrades.TradeModification modification = MaxVillagerTrades.maximizeTradeOffer(
-				offer,
-				new MaxVillagerTrades.TradeContext(VillagerProfession.LIBRARIAN, 1, 2)
-		);
+		MaxVillagerTrades.TradeModification modification = MaxVillagerTrades.maximizeTradeOffer(offer);
 
 		ItemEnchantments stored = modification.offer().getResult().getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY);
 		assertEquals(sharpness.value().getMaxLevel(), stored.getLevel(sharpness));
@@ -85,9 +77,9 @@ class MaxVillagerTradesTest {
 
 	@Test
 	void maximizesRegularEnchantmentsForMasterSmithTrades() {
-		assertRegularEnchantedTradeIsMaxed(VillagerProfession.WEAPONSMITH, Items.DIAMOND_SWORD, Enchantments.SHARPNESS);
-		assertRegularEnchantedTradeIsMaxed(VillagerProfession.ARMORER, Items.DIAMOND_CHESTPLATE, Enchantments.PROTECTION);
-		assertRegularEnchantedTradeIsMaxed(VillagerProfession.TOOLSMITH, Items.DIAMOND_PICKAXE, Enchantments.EFFICIENCY);
+		assertRegularEnchantedTradeIsMaxed(Items.DIAMOND_SWORD, Enchantments.SHARPNESS);
+		assertRegularEnchantedTradeIsMaxed(Items.DIAMOND_CHESTPLATE, Enchantments.PROTECTION);
+		assertRegularEnchantedTradeIsMaxed(Items.DIAMOND_PICKAXE, Enchantments.EFFICIENCY);
 	}
 
 	@Test
@@ -111,24 +103,14 @@ class MaxVillagerTradesTest {
 				0.2F
 		);
 
-		MaxVillagerTrades.TradeModification bookUnchanged = MaxVillagerTrades.maximizeTradeOffer(
-				bookOffer,
-				new MaxVillagerTrades.TradeContext(VillagerProfession.LIBRARIAN, 1, 2),
-				false,
-				true
-		);
+		MaxVillagerTrades.TradeModification bookUnchanged = MaxVillagerTrades.maximizeTradeOffer(bookOffer, false, true);
 		assertEquals(1, bookUnchanged.offer().getResult().getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY).getLevel(sharpness));
 
 		ItemStack sword = new ItemStack(Items.DIAMOND_SWORD);
 		sword.enchant(sharpness, 1);
 		MerchantOffer swordOffer = new MerchantOffer(new ItemCost(Items.EMERALD, 40), sword, 3, 30, 0.05F);
 
-		MaxVillagerTrades.TradeModification itemUnchanged = MaxVillagerTrades.maximizeTradeOffer(
-				swordOffer,
-				new MaxVillagerTrades.TradeContext(VillagerProfession.WEAPONSMITH, 5, 1),
-				true,
-				false
-		);
+		MaxVillagerTrades.TradeModification itemUnchanged = MaxVillagerTrades.maximizeTradeOffer(swordOffer, true, false);
 		assertEquals(1, itemUnchanged.offer().getResult().getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY).getLevel(sharpness));
 	}
 
@@ -152,10 +134,7 @@ class MaxVillagerTradesTest {
 		tool.enchant(efficiency, efficiency.value().getMaxLevel());
 		MerchantOffer offer = new MerchantOffer(new ItemCost(Items.EMERALD, 32), tool, 3, 15, 0.05F);
 
-		MaxVillagerTrades.TradeModification modification = MaxVillagerTrades.maximizeTradeOffer(
-				offer,
-				new MaxVillagerTrades.TradeContext(VillagerProfession.TOOLSMITH, 5, 1)
-		);
+		MaxVillagerTrades.TradeModification modification = MaxVillagerTrades.maximizeTradeOffer(offer);
 
 		assertFalse(modification.modified());
 		assertTrue(modification.changes().isEmpty());
@@ -166,14 +145,14 @@ class MaxVillagerTradesTest {
 	void wrapsTradesForAnyProfessionPresentInTheTradeMap() {
 		ResourceKey<VillagerProfession> customProfession = ResourceKey.create(
 				net.minecraft.core.registries.Registries.VILLAGER_PROFESSION,
-				Identifier.parse("testmod:sage")
+				Identifier.fromNamespaceAndPath(MaxVillagerTrades.MOD_ID, "test_profession")
 		);
 		MerchantOffer offer = new MerchantOffer(new ItemCost(Items.EMERALD, 1), new ItemStack(Items.BOOK), 12, 1, 0.05F);
 		VillagerTrades.ItemListing listing = (level, entity, random) -> offer;
 		Int2ObjectOpenHashMap<VillagerTrades.ItemListing[]> levels = new Int2ObjectOpenHashMap<>();
 		levels.put(2, new VillagerTrades.ItemListing[]{listing});
 
-		Map<ResourceKey<VillagerProfession>, it.unimi.dsi.fastutil.ints.Int2ObjectMap<VillagerTrades.ItemListing[]>> trades = new LinkedHashMap<>();
+		Map<ResourceKey<VillagerProfession>, Int2ObjectMap<VillagerTrades.ItemListing[]>> trades = new LinkedHashMap<>();
 		trades.put(customProfession, levels);
 
 		MaxVillagerTrades.overrideVillagerTradeOffers(trades);
@@ -185,56 +164,7 @@ class MaxVillagerTradesTest {
 		assertEquals("WrappedTradeListing", trades.get(customProfession).get(2)[0].getClass().getSimpleName());
 	}
 
-	@Test
-	void maximizesCustomStoredEnchantmentsForCustomProfessionTrade() {
-		ResourceKey<VillagerProfession> customProfession = ResourceKey.create(
-				net.minecraft.core.registries.Registries.VILLAGER_PROFESSION,
-				Identifier.parse("testmod:sage")
-		);
-		Holder<Enchantment> customEnchantment = customEnchantment("sage_wisdom", 4, Items.BOOK);
-		ItemStack book = EnchantmentHelper.createBook(new EnchantmentInstance(customEnchantment, 1));
-		MerchantOffer offer = new MerchantOffer(
-				new ItemCost(Items.EMERALD, 18),
-				Optional.of(new ItemCost(Items.BOOK)),
-				book,
-				12,
-				1,
-				0.2F
-		);
-
-		MaxVillagerTrades.TradeModification modification = MaxVillagerTrades.maximizeTradeOffer(
-				offer,
-				new MaxVillagerTrades.TradeContext(customProfession, 3, 1)
-		);
-
-		ItemEnchantments stored = modification.offer().getResult().getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY);
-		assertEquals(customEnchantment.value().getMaxLevel(), stored.getLevel(customEnchantment));
-		assertTrue(modification.modified());
-	}
-
-	@Test
-	void maximizesCustomItemEnchantmentsForCustomProfessionTrade() {
-		ResourceKey<VillagerProfession> customProfession = ResourceKey.create(
-				net.minecraft.core.registries.Registries.VILLAGER_PROFESSION,
-				Identifier.parse("testmod:sage")
-		);
-		Holder<Enchantment> customEnchantment = customEnchantment("sage_edge", 4, Items.DIAMOND_SWORD);
-		ItemStack sword = new ItemStack(Items.DIAMOND_SWORD);
-		sword.enchant(customEnchantment, 1);
-		MerchantOffer offer = new MerchantOffer(new ItemCost(Items.EMERALD, 40), sword, 3, 30, 0.05F);
-
-		MaxVillagerTrades.TradeModification modification = MaxVillagerTrades.maximizeTradeOffer(
-				offer,
-				new MaxVillagerTrades.TradeContext(customProfession, 5, 1)
-		);
-
-		ItemEnchantments applied = modification.offer().getResult().getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
-		assertEquals(customEnchantment.value().getMaxLevel(), applied.getLevel(customEnchantment));
-		assertTrue(modification.modified());
-	}
-
 	private static void assertRegularEnchantedTradeIsMaxed(
-			ResourceKey<VillagerProfession> profession,
 			net.minecraft.world.item.Item item,
 			ResourceKey<Enchantment> enchantmentKey
 	) {
@@ -243,10 +173,7 @@ class MaxVillagerTradesTest {
 		itemStack.enchant(enchantment, 1);
 		MerchantOffer offer = new MerchantOffer(new ItemCost(Items.EMERALD, 40), itemStack, 3, 30, 0.05F);
 
-		MaxVillagerTrades.TradeModification modification = MaxVillagerTrades.maximizeTradeOffer(
-				offer,
-				new MaxVillagerTrades.TradeContext(profession, 5, 1)
-		);
+		MaxVillagerTrades.TradeModification modification = MaxVillagerTrades.maximizeTradeOffer(offer);
 
 		ItemEnchantments applied = modification.offer().getResult().getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
 		assertEquals(enchantment.value().getMaxLevel(), applied.getLevel(enchantment));
@@ -288,23 +215,5 @@ class MaxVillagerTradesTest {
 
 	private static Holder<Enchantment> enchantment(ResourceKey<Enchantment> enchantmentKey) {
 		return vanillaLookup.lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(enchantmentKey);
-	}
-
-	private static Holder<Enchantment> customEnchantment(String path, int maxLevel, Item... supportedItems) {
-		Enchantment enchantment = new Enchantment(
-				Component.literal("Test " + path),
-				Enchantment.definition(
-						HolderSet.direct(BuiltInRegistries.ITEM::wrapAsHolder, supportedItems),
-						1,
-						maxLevel,
-						Enchantment.constantCost(1),
-						Enchantment.constantCost(1),
-						1,
-						EquipmentSlotGroup.ANY
-				),
-				HolderSet.empty(),
-				DataComponentMap.EMPTY
-		);
-		return Holder.direct(enchantment);
 	}
 }
