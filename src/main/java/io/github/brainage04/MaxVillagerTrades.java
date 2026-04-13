@@ -19,6 +19,7 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.level.gamerules.GameRule;
 import net.minecraft.world.level.gamerules.GameRuleCategory;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,22 +67,24 @@ public class MaxVillagerTrades implements ModInitializer {
 		}
 	}
 
-	private record WrappedTradeListing(VillagerTrades.ItemListing original,
-	                                   TradeContext context) implements VillagerTrades.ItemListing {
-
+	private record WrappedTradeListing(
+			VillagerTrades.ItemListing original,
+			TradeContext context
+	) implements VillagerTrades.ItemListing {
 		@Override
-			public MerchantOffer getOffer(ServerLevel level, Entity entity, RandomSource random) {
-				TradeModification modification = maximizeTradeOffer(
-						original.getOffer(level, entity, random),
-						level.getGameRules().get(MAX_ENCHANTED_BOOK_TRADES),
-						level.getGameRules().get(MAX_ENCHANTED_ITEM_TRADES)
-				);
-				if (modification.modified()) {
-					LOGGER.info(buildTradeModificationLog(context, modification.changes()));
-				}
-				return modification.offer();
+		@Nullable
+		public MerchantOffer getOffer(ServerLevel level, Entity entity, RandomSource random) {
+			TradeModification modification = maximizeTradeOffer(
+					original.getOffer(level, entity, random),
+					level.getGameRules().get(MAX_ENCHANTED_BOOK_TRADES),
+					level.getGameRules().get(MAX_ENCHANTED_ITEM_TRADES)
+			);
+			if (modification.modified()) {
+				LOGGER.info(buildTradeModificationLog(context, modification.changes()));
 			}
+			return modification.offer();
 		}
+	}
 
 	static TradeModification maximizeTradeOffer(MerchantOffer offer) {
 		return maximizeTradeOffer(offer, true, true);
@@ -150,9 +153,7 @@ public class MaxVillagerTrades implements ModInitializer {
 		for (Holder<Enchantment> enchantment : enchantments.keySet()) {
 			int oldLevel = enchantments.getLevel(enchantment);
 			int maxLevel = enchantment.value().getMaxLevel();
-			if (oldLevel == maxLevel) {
-				continue;
-			}
+			if (oldLevel == maxLevel) continue;
 
 			mutable.set(enchantment, maxLevel);
 			changes.add(new EnchantmentChange(enchantment.getRegisteredName(), oldLevel, maxLevel));
@@ -168,22 +169,16 @@ public class MaxVillagerTrades implements ModInitializer {
 		for (Map.Entry<ResourceKey<VillagerProfession>, Int2ObjectMap<VillagerTrades.ItemListing[]>> professionEntry : tradesMap.entrySet()) {
 			ResourceKey<VillagerProfession> profession = professionEntry.getKey();
 			Int2ObjectMap<VillagerTrades.ItemListing[]> professionLevels = professionEntry.getValue();
-			if (professionLevels == null) {
-				continue;
-			}
+			if (professionLevels == null) continue;
 
 			for (int level : professionLevels.keySet()) {
 				VillagerTrades.ItemListing[] originalFactories = professionLevels.get(level);
-				if (originalFactories == null) {
-					continue;
-				}
+				if (originalFactories == null) continue;
 				VillagerTrades.ItemListing[] wrappedFactories = Arrays.copyOf(originalFactories, originalFactories.length);
 
 				for (int i = 0; i < originalFactories.length; i++) {
 					VillagerTrades.ItemListing original = originalFactories[i];
-					if (original instanceof WrappedTradeListing) {
-						continue;
-					}
+					if (original instanceof WrappedTradeListing) continue;
 
 					wrappedFactories[i] = new WrappedTradeListing(original, new TradeContext(profession, level, i + 1));
 				}

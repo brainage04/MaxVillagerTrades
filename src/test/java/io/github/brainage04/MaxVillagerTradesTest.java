@@ -190,24 +190,18 @@ class MaxVillagerTradesTest {
 				break;
 			}
 
-			if (!simpleName.equals("ItemsForEmeralds")) {
-				continue;
-			}
+			if (!simpleName.equals("ItemsForEmeralds")) continue;
 
 			Field enchantmentProvider = listing.getClass().getDeclaredField("enchantmentProvider");
 			enchantmentProvider.setAccessible(true);
 			Optional<?> provider = assertInstanceOf(Optional.class, enchantmentProvider.get(listing));
-			if (provider.isEmpty()) {
-				continue;
-			}
+			if (provider.isEmpty()) continue;
 
 			Field itemStackField = listing.getClass().getDeclaredField("itemStack");
 			itemStackField.setAccessible(true);
 			ItemStack itemStack = assertInstanceOf(ItemStack.class, itemStackField.get(listing));
 			found = itemStack.is(Items.DIAMOND_CHESTPLATE) || itemStack.is(Items.DIAMOND_SWORD) || itemStack.is(Items.DIAMOND_PICKAXE);
-			if (found) {
-				break;
-			}
+			if (found) break;
 		}
 
 		assertTrue(found, () -> "Expected an enchanted diamond equipment trade for " + profession.identifier());
