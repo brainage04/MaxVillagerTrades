@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 public class MaxVillagerTrades implements ModInitializer {
 	public static final String MOD_ID = "maxvillagertrades";
 	public static final String MOD_NAME = "MaxVillagerTrades";
-	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+	public static final Logger LOGGER_TEST_CHANGE = LoggerFactory.getLogger(MOD_ID);
 
 	public static final GameRule<Boolean> MAX_ENCHANTED_BOOK_TRADES = registerBooleanGameRule("max_enchanted_book_trades", true);
 	public static final GameRule<Boolean> MAX_ENCHANTED_ITEM_TRADES = registerBooleanGameRule("max_enchanted_item_trades", true);
@@ -80,7 +80,7 @@ public class MaxVillagerTrades implements ModInitializer {
 					level.getGameRules().get(MAX_ENCHANTED_ITEM_TRADES)
 			);
 			if (modification.modified()) {
-				LOGGER.info(buildTradeModificationLog(context, modification.changes()));
+				LOGGER_TEST_CHANGE.info(buildTradeModificationLog(context, modification.changes()));
 			}
 			return modification.offer();
 		}
@@ -197,12 +197,12 @@ public class MaxVillagerTrades implements ModInitializer {
 	
 	@Override
 	public void onInitialize() {
-		LOGGER.info("{} initializing...", MOD_NAME);
+		LOGGER_TEST_CHANGE.info("{} initializing...", MOD_NAME);
 
 		overrideVillagerTradeOffers(VillagerTrades.TRADES);
 		overrideVillagerTradeOffers(VillagerTrades.EXPERIMENTAL_TRADES);
 		// todo: add support for wandering trader trades
 
-		LOGGER.info("{} initialized.", MOD_NAME);
+		LOGGER_TEST_CHANGE.info("{} initialized.", MOD_NAME);
 	}
 }
