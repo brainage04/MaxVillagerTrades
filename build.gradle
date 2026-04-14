@@ -50,6 +50,16 @@ loom {
 	accessWidenerPath = file("src/main/resources/maxvillagertrades.accesswidener")
 }
 
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = "maxvillagertrades-gametest-${project.name}"
+		enableGameTests = true
+		enableClientGameTests = false
+		eula = true
+	}
+}
+
 test {
 	useJUnitPlatform()
 }
