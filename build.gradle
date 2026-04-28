@@ -19,6 +19,9 @@ repositories {
 
 	// ModMenu
 	maven { url "https://maven.terraformersmc.com/" }
+
+	// DevAuth
+	maven { url = "https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1" }
 }
 
 dependencies {
@@ -29,6 +32,9 @@ dependencies {
 
 	// ModMenu
 	implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+	// DevAuth
+	runtimeOnly "me.djtheredstoner:DevAuth-fabric:${project.devauth_version}"
 }
 
 processResources {
