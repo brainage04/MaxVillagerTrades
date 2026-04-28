@@ -108,7 +108,7 @@ else
           title: ($config.title // $mod.name),
           description: ($config.description // $mod.description),
           body: $body,
-          categories: (if ($config.categories // [] | length) > 0 then $config.categories else ["fabric"] end),
+          categories: (if ($config.categories // [] | length) > 0 then $config.categories else ["utility"] end),
           client_side: ($config.client_side // $support.client_side),
           server_side: ($config.server_side // $support.server_side),
           status: ($config.status // "draft"),
