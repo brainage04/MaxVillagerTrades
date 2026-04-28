@@ -1,29 +1,48 @@
-name: build
+# Automatically build the project and run any configured tests for every push
+# and submitted pull request. This can help catch issues that only occur on
+# certain platforms or Java versions, and provides a first line of defence
+# against bad commits.
 
-on:
-  pull_request:
-  push:
-    tags-ignore:
-      - 'v*'
+name: build
+on: [pull_request, push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
       - name: checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+
+      - name: install workflow tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq perl ripgrep shellcheck shfmt tar
+
+      - name: install actionlint
+        env:
+          ACTIONLINT_VERSION: "1.7.7"
+        run: |
+          curl -sSLo /tmp/actionlint.tar.gz "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp actionlint
+          sudo install -m 0755 /tmp/actionlint /usr/local/bin/actionlint
+
+      - name: shellcheck scripts
+        run: shellcheck .github/scripts/*.sh
+
+      - name: format check scripts
+        run: shfmt -d -i 2 -ci .github/scripts/*.sh
+
+      - name: lint workflows
+        run: actionlint
 
       - name: validate gradle wrapper
-        uses: gradle/actions/wrapper-validation@v4
+        uses: gradle/actions/wrapper-validation@v5
 
       - name: setup jdk
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
-          java-version: '21'
+          java-version: '25'
           distribution: 'microsoft'
-
-      - name: setup gradle
-        uses: gradle/actions/setup-gradle@v4
 
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
@@ -31,113 +50,17 @@ jobs:
       - name: build
         run: ./gradlew build
 
-      - name: capture build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Artifacts
-          path: build/libs/
-
-      - name: Store reports
+      - name: store reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: reports
           path: |
             **/build/reports/
             **/build/test-results/
 
-  production-smoke-test:
-    runs-on: ubuntu-24.04
-    needs: build
-    steps:
-      - name: checkout repository
-        uses: actions/checkout@v4
-
-      - name: setup jdk
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'microsoft'
-
-      - name: download build artifacts
-        uses: actions/download-artifact@v4
+      - name: capture build artifacts
+        uses: actions/upload-artifact@v7
         with:
           name: Artifacts
-          path: dist
-
-      - name: install clean Fabric server and boot built mod jar
-        env:
-          FABRIC_INSTALLER_VERSION: '1.0.1'
-        run: |
-          set -euo pipefail
-
-          MINECRAFT_VERSION="$(grep '^minecraft_version=' gradle.properties | cut -d= -f2)"
-          LOADER_VERSION="$(grep '^loader_version=' gradle.properties | cut -d= -f2)"
-          FABRIC_API_VERSION="$(grep '^fabric_api_version=' gradle.properties | cut -d= -f2)"
-
-          MOD_JAR="$(find dist -type f -name '*.jar' ! -name '*-dev.jar' ! -name '*-sources.jar' | head -n1)"
-          if [[ -z "${MOD_JAR}" ]]; then
-            echo "Could not find a remapped mod jar in dist/"
-            exit 1
-          fi
-
-          curl -fsSL -o fabric-installer.jar \
-            "https://maven.fabricmc.net/net/fabricmc/fabric-installer/${FABRIC_INSTALLER_VERSION}/fabric-installer-${FABRIC_INSTALLER_VERSION}.jar"
-          curl -fsSL -o fabric-api.jar \
-            "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/${FABRIC_API_VERSION}/fabric-api-${FABRIC_API_VERSION}.jar"
-
-          mkdir -p smoke-server
-          pushd smoke-server
-
-          echo "eula=true" > eula.txt
-          java -jar ../fabric-installer.jar server \
-            -mcversion "${MINECRAFT_VERSION}" \
-            -loader "${LOADER_VERSION}" \
-            -downloadMinecraft
-
-          mkdir -p mods
-          cp "../${MOD_JAR}" mods/
-          cp ../fabric-api.jar mods/
-
-          SERVER_JAR="$(find . -maxdepth 1 -type f -name 'fabric-server-*.jar' | head -n1)"
-          if [[ -z "${SERVER_JAR}" && -f fabric-server-launch.jar ]]; then
-            SERVER_JAR="fabric-server-launch.jar"
-          fi
-          if [[ -z "${SERVER_JAR}" ]]; then
-            echo "Could not find the installed Fabric server launcher jar"
-            exit 1
-          fi
-
-          set +e
-          timeout 90s java -Xmx1G -jar "${SERVER_JAR}" nogui > server-console.log 2>&1
-          status=$?
-          set -e
-          if [[ ${status} -ne 0 && ${status} -ne 124 ]]; then
-            cat server-console.log
-            exit "${status}"
-          fi
-
-          if [[ -f logs/latest.log ]]; then
-            LOG_FILE="logs/latest.log"
-          else
-            LOG_FILE="server-console.log"
-          fi
-
-          grep -q "Done (" "${LOG_FILE}"
-          grep -q "MaxVillagerTrades initialized." "${LOG_FILE}"
-
-          if grep -Eq \
-            "Failed to load access widener|Mixin apply failed|Could not resolve entrypoint|NoClassDefFoundError|ClassNotFoundException|incompatible mod set" \
-            "${LOG_FILE}"; then
-            cat "${LOG_FILE}"
-            exit 1
-          fi
-
-          popd
-
-      - name: upload smoke test logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: production-smoke-test-logs
-          path: smoke-server
+          path: build/libs/

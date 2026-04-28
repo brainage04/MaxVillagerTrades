@@ -1,8 +1,8 @@
 {
 	"schemaVersion": 1,
-	"id": "maxvillagertrades",
-	"version": "${version}",
-	"name": "MaxVillagerTrades",
+	"id": "${mod_id}",
+	"version": "${mod_version}",
+	"name": "${mod_name}",
 	"description": "A server-side mod that guarantees max-level enchantments on villager trade outputs, with separate gamerules for books and items.",
 	"authors": [
 		"brainage04"
@@ -16,14 +16,17 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"io.github.brainage04.MaxVillagerTrades"
+			"io.github.brainage04.maxvillagertrades.MaxVillagerTrades"
 		]
 	},
+	"mixins": [
+		"maxvillagertrades.mixins.json"
+	],
 	"depends": {
-		"fabric-api": "*",
-		"fabricloader": ">=0.18.6",
-		"minecraft": "~1.21.11",
-		"java": ">=21"
+		"fabricloader": ">=${loader_version}",
+		"minecraft": "~${minecraft_version}",
+		"java": ">=${java_version}",
+		"fabric-api": "*"
 	},
 	"accessWidener": "maxvillagertrades.accesswidener"
 }

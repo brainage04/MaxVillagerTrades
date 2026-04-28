@@ -1,6 +1,5 @@
-package io.github.brainage04;
+package io.github.brainage04.maxvillagertrades;
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleBuilder;
 import net.minecraft.core.Holder;
@@ -9,17 +8,15 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
-import net.minecraft.world.entity.npc.villager.VillagerTrades;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.level.gamerules.GameRule;
 import net.minecraft.world.level.gamerules.GameRuleCategory;
-import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,13 +24,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 public class MaxVillagerTrades implements ModInitializer {
 	public static final String MOD_ID = "maxvillagertrades";
 	public static final String MOD_NAME = "MaxVillagerTrades";
-	public static final Logger LOGGER_TEST_CHANGE = LoggerFactory.getLogger(MOD_ID);
+	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_NAME);
 
 	public static final GameRule<Boolean> MAX_ENCHANTED_BOOK_TRADES = registerBooleanGameRule("max_enchanted_book_trades", true);
 	public static final GameRule<Boolean> MAX_ENCHANTED_ITEM_TRADES = registerBooleanGameRule("max_enchanted_item_trades", true);
@@ -67,25 +63,6 @@ public class MaxVillagerTrades implements ModInitializer {
 		}
 	}
 
-	record WrappedTradeListing(
-			VillagerTrades.ItemListing original,
-			TradeContext context
-	) implements VillagerTrades.ItemListing {
-		@Override
-		@Nullable
-		public MerchantOffer getOffer(ServerLevel level, Entity entity, RandomSource random) {
-			TradeModification modification = maximizeTradeOffer(
-					original.getOffer(level, entity, random),
-					level.getGameRules().get(MAX_ENCHANTED_BOOK_TRADES),
-					level.getGameRules().get(MAX_ENCHANTED_ITEM_TRADES)
-			);
-			if (modification.modified()) {
-				LOGGER_TEST_CHANGE.info(buildTradeModificationLog(context, modification.changes()));
-			}
-			return modification.offer();
-		}
-	}
-
 	static TradeModification maximizeTradeOffer(MerchantOffer offer) {
 		return maximizeTradeOffer(offer, true, true);
 	}
@@ -95,7 +72,7 @@ public class MaxVillagerTrades implements ModInitializer {
 			return new TradeModification(null, List.of());
 		}
 
-		ItemStack result = offer.getResult().copy();
+		ItemStack result = offer.getResult();
 		List<EnchantmentChange> changes = new ArrayList<>();
 
 		if (maxBookTrades) {
@@ -105,30 +82,13 @@ public class MaxVillagerTrades implements ModInitializer {
 			maximizeEnchantments(result, DataComponents.ENCHANTMENTS, changes);
 		}
 
-		if (changes.isEmpty()) {
-			return new TradeModification(offer, List.of());
-		}
-
-		return new TradeModification(copyOfferWithResult(offer, result), List.copyOf(changes));
+		return new TradeModification(offer, List.copyOf(changes));
 	}
 
 	static String buildTradeModificationLog(TradeContext context, List<EnchantmentChange> changes) {
 		return "Modified enchants for Trade " + context.tradeIndex()
 				+ " with " + context.villagerLevelName() + " " + context.professionName() + " Villager - "
 				+ changes.stream().map(EnchantmentChange::describe).collect(Collectors.joining(", "));
-	}
-
-	private static MerchantOffer copyOfferWithResult(MerchantOffer offer, ItemStack result) {
-		return new MerchantOffer(
-				offer.getItemCostA(),
-				offer.getItemCostB(),
-				result,
-				offer.getUses(),
-				offer.getMaxUses(),
-				offer.getXp(),
-				offer.getPriceMultiplier(),
-				offer.getDemand()
-		);
 	}
 
 	private static GameRule<Boolean> registerBooleanGameRule(String name, boolean defaultValue) {
@@ -165,25 +125,22 @@ public class MaxVillagerTrades implements ModInitializer {
 		}
 	}
 
-	static void overrideVillagerTradeOffers(Map<ResourceKey<VillagerProfession>, Int2ObjectMap<VillagerTrades.ItemListing[]>> tradesMap) {
-		for (Map.Entry<ResourceKey<VillagerProfession>, Int2ObjectMap<VillagerTrades.ItemListing[]>> professionEntry : tradesMap.entrySet()) {
-			ResourceKey<VillagerProfession> profession = professionEntry.getKey();
-			Int2ObjectMap<VillagerTrades.ItemListing[]> professionLevels = professionEntry.getValue();
-			if (professionLevels == null) continue;
+	public static void maximizeNewVillagerOffers(Villager villager, ServerLevel level, int firstOfferIndex) {
+		MerchantOffers offers = villager.getOffers();
+		ResourceKey<VillagerProfession> profession = villager.getVillagerData()
+				.profession()
+				.unwrapKey()
+				.orElse(VillagerProfession.NONE);
+		int villagerLevel = villager.getVillagerData().level();
 
-			for (int level : professionLevels.keySet()) {
-				VillagerTrades.ItemListing[] originalFactories = professionLevels.get(level);
-				if (originalFactories == null) continue;
-				VillagerTrades.ItemListing[] wrappedFactories = Arrays.copyOf(originalFactories, originalFactories.length);
-
-				for (int i = 0; i < originalFactories.length; i++) {
-					VillagerTrades.ItemListing original = originalFactories[i];
-					if (original instanceof WrappedTradeListing) continue;
-
-					wrappedFactories[i] = new WrappedTradeListing(original, new TradeContext(profession, level, i + 1));
-				}
-
-				professionLevels.put(level, wrappedFactories);
+		for (int i = Math.max(0, firstOfferIndex); i < offers.size(); i++) {
+			TradeModification modification = maximizeTradeOffer(
+					offers.get(i),
+					level.getGameRules().get(MAX_ENCHANTED_BOOK_TRADES),
+					level.getGameRules().get(MAX_ENCHANTED_ITEM_TRADES)
+			);
+			if (modification.modified()) {
+				LOGGER.info(buildTradeModificationLog(new TradeContext(profession, villagerLevel, i + 1), modification.changes()));
 			}
 		}
 	}
@@ -194,15 +151,11 @@ public class MaxVillagerTrades implements ModInitializer {
 				.map(word -> word.substring(0, 1).toUpperCase(Locale.ROOT) + word.substring(1))
 				.collect(Collectors.joining(" "));
 	}
-	
+
 	@Override
 	public void onInitialize() {
-		LOGGER_TEST_CHANGE.info("{} initializing...", MOD_NAME);
+		LOGGER.info("{} initializing...", MOD_NAME);
 
-		overrideVillagerTradeOffers(VillagerTrades.TRADES);
-		overrideVillagerTradeOffers(VillagerTrades.EXPERIMENTAL_TRADES);
-		// todo: add support for wandering trader trades
-
-		LOGGER_TEST_CHANGE.info("{} initialized.", MOD_NAME);
+		LOGGER.info("{} initialized.", MOD_NAME);
 	}
 }
