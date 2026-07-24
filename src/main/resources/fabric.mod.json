@@ -27,6 +27,5 @@
 		"minecraft": "~${minecraft_version}",
 		"java": ">=${java_version}",
 		"fabric-api": "*"
-	},
-	"accessWidener": "maxvillagertrades.accesswidener"
+	}
 }
