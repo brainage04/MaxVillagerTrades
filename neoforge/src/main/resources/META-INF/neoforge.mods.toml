@@ -1,0 +1,26 @@
+modLoader="javafml"
+loaderVersion="[11,)"
+license="MIT"
+
+[[mods]]
+modId="maxvillagertrades"
+version="${version}"
+displayName="MaxVillagerTrades"
+authors="brainage04"
+description='''A server-side mod that guarantees max-level enchantments on villager trade outputs, with separate gamerules for books and items.'''
+[[mixins]]
+config="maxvillagertrades.mixins.json"
+
+[[dependencies.maxvillagertrades]]
+modId="neoforge"
+type="required"
+versionRange="[${neoforge_version},26.3)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.maxvillagertrades]]
+modId="minecraft"
+type="required"
+versionRange="[${minecraft_version},26.3)"
+ordering="NONE"
+side="BOTH"
