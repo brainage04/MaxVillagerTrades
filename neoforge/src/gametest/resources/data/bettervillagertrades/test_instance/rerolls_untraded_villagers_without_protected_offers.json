@@ -1,0 +1,7 @@
+{
+  "environment": "minecraft:default",
+  "structure": "minecraft:empty",
+  "max_ticks": 40,
+  "type": "minecraft:function",
+  "function": "bettervillagertrades:rerolls_untraded_villagers_without_protected_offers"
+}

@@ -31,5 +31,5 @@ pluginManagement {
 
 if (file('../FabricModdingConventions/settings.gradle').exists()) includeBuild('../FabricModdingConventions')
 
-rootProject.name = 'MaxVillagerTrades'
+rootProject.name = 'BetterVillagerTrades'
 include 'common', 'fabric', 'neoforge'

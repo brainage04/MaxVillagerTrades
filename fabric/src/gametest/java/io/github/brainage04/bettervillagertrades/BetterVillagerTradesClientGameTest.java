@@ -1,11 +1,14 @@
-package io.github.brainage04.maxvillagertrades;
+package io.github.brainage04.bettervillagertrades;
 
 import io.github.brainage04.fabricmoddingconventions.ClientGameTestRecorder;
 import io.github.brainage04.fabricmoddingconventions.ClientGameTestServers;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.network.chat.Component;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.MinecraftServer;
@@ -16,16 +19,20 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.inventory.MerchantMenu;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.item.trading.MerchantOffers;
 
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 
 @SuppressWarnings("UnstableApiUsage")
-public final class MaxVillagerTradesClientGameTest implements FabricClientGameTest {
+public final class BetterVillagerTradesClientGameTest implements FabricClientGameTest {
 	private static UUID librarianId;
 	private static UUID equipmentSmithId;
 
@@ -33,9 +40,9 @@ public final class MaxVillagerTradesClientGameTest implements FabricClientGameTe
 	public void runTest(ClientGameTestContext context) {
 		Properties serverProperties = ClientGameTestServers.flatServerProperties();
 		try (TestDedicatedServerContext server = context.worldBuilder().createServer(serverProperties)) {
-			ClientGameTestServers.connectToDedicatedServer(context, server, "Max Villager Trades visual GameTest");
+			ClientGameTestServers.connectToDedicatedServer(context, server, "Better Villager Trades visual GameTest");
 			try {
-				server.runOnServer(MaxVillagerTradesClientGameTest::prepareTrades);
+				server.runOnServer(BetterVillagerTradesClientGameTest::prepareTrades);
 				ClientGameTestServers.assertClientWorldAndPlayerAvailable(context);
 				context.waitTicks(20);
 
@@ -50,6 +57,16 @@ public final class MaxVillagerTradesClientGameTest implements FabricClientGameTe
 				assertClientInventoryTrade(context, 0, DataComponents.STORED_ENCHANTMENTS);
 				context.waitTicks(60);
 
+				openMerchantScreen(context);
+				ClientGameTestRecorder.showStep(
+						context,
+						"trade-reroll-controls",
+						"Per-player reroll controls",
+						"The optional client adds Reroll trades and Toggle filter controls beneath the standard villager trading screen"
+				);
+				assertMerchantControls(context);
+				context.waitTicks(60);
+
 				assertClientVillagerStaged(context, equipmentSmithId);
 				ClientGameTestRecorder.showStep(
 						context,
@@ -61,7 +78,7 @@ public final class MaxVillagerTradesClientGameTest implements FabricClientGameTe
 				assertClientInventoryTrade(context, 1, DataComponents.ENCHANTMENTS);
 				context.waitTicks(60);
 			} finally {
-				server.runOnServer(MaxVillagerTradesClientGameTest::cleanupTrades);
+				server.runOnServer(BetterVillagerTradesClientGameTest::cleanupTrades);
 				ClientGameTestServers.disconnectFromDedicatedServer(context);
 			}
 		}
@@ -69,8 +86,8 @@ public final class MaxVillagerTradesClientGameTest implements FabricClientGameTe
 
 	private static void prepareTrades(MinecraftServer server) {
 		ServerLevel level = server.overworld();
-		server.getGameRules().set(MaxVillagerTrades.MAX_ENCHANTED_BOOK_TRADES, true, server);
-		server.getGameRules().set(MaxVillagerTrades.MAX_ENCHANTED_ITEM_TRADES, true, server);
+		server.getGameRules().set(BetterVillagerTrades.MAX_ENCHANTED_BOOK_TRADES, true, server);
+		server.getGameRules().set(BetterVillagerTrades.MAX_ENCHANTED_ITEM_TRADES, true, server);
 		ServerPlayer player = server.getPlayerList().getPlayers().getFirst();
 		player.teleportTo(level, 2.5, -60.0, 4.0, java.util.Set.of(), 180.0F, 0.0F, false);
 
@@ -122,8 +139,45 @@ public final class MaxVillagerTradesClientGameTest implements FabricClientGameTe
 		throw new AssertionError("Expected a generated enchanted trade result.");
 	}
 
+	private static void openMerchantScreen(ClientGameTestContext context) {
+		context.runOnClient(client -> {
+			MerchantMenu menu = new MerchantMenu(0, client.player.getInventory());
+			MerchantOffers offers = new MerchantOffers();
+			offers.add(new MerchantOffer(
+					new ItemCost(Items.EMERALD),
+					client.player.getInventory().getItem(0).copy(),
+					1,
+					1,
+					0.0F
+			));
+			menu.setOffers(offers);
+			client.gui.setScreen(new MerchantScreen(menu, client.player.getInventory(), Component.literal("Librarian")));
+		});
+	}
+
+	private static void assertMerchantControls(ClientGameTestContext context) {
+		context.runOnClient(client -> {
+			if (!(client.gui.screen() instanceof MerchantScreen screen)) {
+				throw new AssertionError("Expected the villager trading screen to be open.");
+			}
+			List<String> buttonLabels = screen.children().stream()
+					.filter(Button.class::isInstance)
+					.map(Button.class::cast)
+					.map(button -> button.getMessage().getString())
+					.toList();
+			if (!buttonLabels.contains("Reroll trades") || !buttonLabels.contains("Toggle filter")) {
+				throw new AssertionError("Expected both BetterVillagerTrades controls in the trading screen.");
+			}
+		});
+	}
+
 	private static void openInventoryScreen(ClientGameTestContext context) {
-		context.runOnClient(client -> client.gui.setScreen(new InventoryScreen(client.player)));
+		context.runOnClient(client -> {
+			if (client.player.containerMenu instanceof MerchantMenu) {
+				client.player.closeContainer();
+			}
+			client.gui.setScreen(new InventoryScreen(client.player));
+		});
 	}
 
 	private static void assertClientInventoryTrade(ClientGameTestContext context, int slot,

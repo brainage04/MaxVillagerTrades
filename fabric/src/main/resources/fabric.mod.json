@@ -3,24 +3,24 @@
 	"id": "${mod_id}",
 	"version": "${mod_version}",
 	"name": "${mod_name}",
-	"description": "A server-side mod that guarantees max-level enchantments on villager trade outputs, with separate gamerules for books and items.",
+	"description": "Rerolls untraded villagers, protects player-selected trades, and guarantees max-level enchantment outputs.",
 	"authors": [
 		"brainage04"
 	],
 	"contact": {
-		"homepage": "https://github.com/brainage04/MaxVillagerTrades",
-		"sources": "https://github.com/brainage04/MaxVillagerTrades"
+		"homepage": "https://github.com/brainage04/BetterVillagerTrades",
+		"sources": "https://github.com/brainage04/BetterVillagerTrades"
 	},
 	"license": "MIT",
-	"icon": "assets/maxvillagertrades/icon.png",
+	"icon": "assets/bettervillagertrades/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"io.github.brainage04.maxvillagertrades.fabric.MaxVillagerTradesFabric"
+			"io.github.brainage04.bettervillagertrades.fabric.BetterVillagerTradesFabric"
 		]
 	},
 	"mixins": [
-		"maxvillagertrades.mixins.json"
+		"bettervillagertrades.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=${loader_version}",

@@ -13,7 +13,7 @@ jobs:
       contents: write
     uses: brainage04/FabricModdingConventions/.github/workflows/reusable-release-prepare.yml@v2.3.9
     with:
-      additional_artifact_pattern: maxvillagertrades-neoforge-*.jar
+      additional_artifact_pattern: bettervillagertrades-neoforge-*.jar
       resolve_release_notes_with_gradle: false
     secrets:
       release_token: ${{ secrets.GITHUB_TOKEN }}
@@ -28,7 +28,7 @@ jobs:
       additional_artifact_file: ${{ needs.prepare.outputs.additional_artifact_file }}
       publish_with_gradle: false
       release_body: ${{ needs.prepare.outputs.release_body }}
-      release_name: ${{ format('MaxVillagerTrades {0}', github.ref_name) }}
+      release_name: ${{ format('BetterVillagerTrades {0}', github.ref_name) }}
     secrets:
       release_token: ${{ secrets.GITHUB_TOKEN }}
 

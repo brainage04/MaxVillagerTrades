@@ -1,4 +1,4 @@
-package io.github.brainage04.maxvillagertrades;
+package io.github.brainage04.bettervillagertrades;
 
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.Holder;
@@ -7,6 +7,8 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerData;
@@ -18,8 +20,9 @@ import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.item.trading.MerchantOffers;
 
-public final class MaxVillagerTradesGameTest {
+public final class BetterVillagerTradesGameTest {
 	@GameTest(maxTicks = 40)
 	public void generatedVillagerTradesAreMaxed(GameTestHelper helper) {
 		helper.runAtTickTime(1, () -> {
@@ -51,19 +54,74 @@ public final class MaxVillagerTradesGameTest {
 		MerchantOffer bookOffer = new MerchantOffer(new ItemCost(Items.EMERALD), book, 1, 1, 0.0F);
 		MerchantOffer swordOffer = new MerchantOffer(new ItemCost(Items.EMERALD), sword, 1, 1, 0.0F);
 
-		MaxVillagerTrades.maximizeTradeOffer(bookOffer, false, true);
-		MaxVillagerTrades.maximizeTradeOffer(swordOffer, true, false);
+		BetterVillagerTrades.maximizeTradeOffer(bookOffer, false, true);
+		BetterVillagerTrades.maximizeTradeOffer(swordOffer, true, false);
 		helper.assertTrue(enchantmentLevel(bookOffer, DataComponents.STORED_ENCHANTMENTS, sharpness) == 1,
 				"The book gamerule must leave enchanted books unchanged when disabled");
 		helper.assertTrue(enchantmentLevel(swordOffer, DataComponents.ENCHANTMENTS, sharpness) == 1,
 				"The item gamerule must leave enchanted items unchanged when disabled");
 
-		MaxVillagerTrades.maximizeTradeOffer(bookOffer, true, false);
-		MaxVillagerTrades.maximizeTradeOffer(swordOffer, false, true);
+		BetterVillagerTrades.maximizeTradeOffer(bookOffer, true, false);
+		BetterVillagerTrades.maximizeTradeOffer(swordOffer, false, true);
 		helper.assertTrue(enchantmentLevel(bookOffer, DataComponents.STORED_ENCHANTMENTS, sharpness) == sharpness.value().getMaxLevel(),
 				"The book gamerule must maximize enchanted books when enabled");
 		helper.assertTrue(enchantmentLevel(swordOffer, DataComponents.ENCHANTMENTS, sharpness) == sharpness.value().getMaxLevel(),
 				"The item gamerule must maximize enchanted items when enabled");
+		helper.succeed();
+	}
+
+	@GameTest(maxTicks = 40)
+	@SuppressWarnings("removal")
+	public void rerollsUntradedVillagersWithoutProtectedOffers(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		var enchantmentRegistry = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+		Holder<Enchantment> mending = enchantmentRegistry.wrapAsHolder(
+				enchantmentRegistry.getValueOrThrow(Enchantments.MENDING)
+		);
+		ItemStack mendingBook = enchantedStack(
+				new ItemStack(Items.ENCHANTED_BOOK),
+				DataComponents.STORED_ENCHANTMENTS,
+				mending
+		);
+		TradeFilter filter = TradeFilter.fromStack(mendingBook);
+		MerchantOffer protectedOffer = new MerchantOffer(new ItemCost(Items.EMERALD), mendingBook, 1, 1, 0.0F);
+		MerchantOffers originalOffers = new MerchantOffers();
+		originalOffers.add(protectedOffer);
+		Villager villager = createVillager(helper, level, VillagerProfession.LIBRARIAN, 1, 2, 2, 2);
+		villager.setOffers(originalOffers);
+
+		PlayerTradeFilters filters = PlayerTradeFilters.get(level.getServer());
+		filters.clear(player);
+		filters.add(player, filter);
+		helper.assertTrue(!TradeRerollService.reroll(player, villager, false),
+				"A matching per-player filter must block the reroll");
+		helper.assertTrue(villager.getOffers().getFirst() == protectedOffer,
+				"A blocked reroll must preserve the existing offers");
+
+		filters.clear(player);
+		helper.assertTrue(TradeRerollService.reroll(player, villager, false),
+				"An untraded novice villager without protected offers must reroll");
+		helper.assertTrue(!villager.getOffers().contains(protectedOffer),
+				"A successful reroll must replace the previous offers");
+
+		originalOffers.clear();
+		originalOffers.add(protectedOffer);
+		villager.setOffers(originalOffers);
+		player.setShiftKeyDown(true);
+		player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.EMERALD));
+		helper.assertTrue(TradeRerollService.interact(player, villager, InteractionHand.MAIN_HAND).consumesAction(),
+				"Sneak-right-clicking with an emerald must consume the interaction");
+		helper.assertTrue(!villager.getOffers().contains(protectedOffer),
+				"The emerald interaction must reroll eligible villager trades");
+		player.setShiftKeyDown(false);
+
+		protectedOffer.increaseUses();
+		originalOffers.clear();
+		originalOffers.add(protectedOffer);
+		villager.setOffers(originalOffers);
+		helper.assertTrue(!TradeRerollService.reroll(player, villager, false),
+				"A villager with a used trade must be locked against rerolls");
 		helper.succeed();
 	}
 

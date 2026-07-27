@@ -1,4 +1,4 @@
-package io.github.brainage04.maxvillagertrades;
+package io.github.brainage04.bettervillagertrades;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentType;
@@ -23,15 +23,19 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
-public final class MaxVillagerTrades {
-	public static final String MOD_ID = "maxvillagertrades";
-	public static final String MOD_NAME = "MaxVillagerTrades";
+public final class BetterVillagerTrades {
+	public static final String MOD_ID = "bettervillagertrades";
+	public static final String MOD_NAME = "BetterVillagerTrades";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_NAME);
 
 	public static GameRule<Boolean> MAX_ENCHANTED_BOOK_TRADES;
 	public static GameRule<Boolean> MAX_ENCHANTED_ITEM_TRADES;
 
-	private MaxVillagerTrades() {
+	private BetterVillagerTrades() {
+	}
+
+	public static Identifier of(String path) {
+		return Identifier.fromNamespaceAndPath(MOD_ID, path);
 	}
 
 	record TradeContext(ResourceKey<VillagerProfession> profession, int villagerLevel, int tradeIndex) {

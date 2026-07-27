@@ -54,11 +54,11 @@ modPublishing {
 	releaseTag.set("v${rootProject.mod_version}")
 	displayName.set("${rootProject.mod_name} ${rootProject.mod_version} (NeoForge)")
 	modLoaders.set(['neoforge'])
-	github.repository.set('brainage04/MaxVillagerTrades')
+	github.repository.set('brainage04/BetterVillagerTrades')
 	fabricModJson.set(rootProject.layout.projectDirectory.file('fabric/build/resources/main/fabric.mod.json'))
 	licenseFile.set(rootProject.layout.projectDirectory.file('LICENSE'))
 	modrinth.projectBody.set(rootProject.layout.projectDirectory.file('README.md'))
-	modrinth.iconFile.set(rootProject.layout.projectDirectory.file('fabric/src/main/resources/assets/maxvillagertrades/icon.png'))
+	modrinth.iconFile.set(rootProject.layout.projectDirectory.file('fabric/src/main/resources/assets/bettervillagertrades/icon.png'))
 }
 
 tasks.named('validateModPublication') {

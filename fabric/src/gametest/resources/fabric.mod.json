@@ -1,16 +1,16 @@
 {
 	"schemaVersion": 1,
-	"id": "maxvillagertrades-gametest",
+	"id": "bettervillagertrades-gametest",
 	"version": "${mod_version}",
 	"name": "${mod_name} GameTests",
-	"icon": "assets/maxvillagertrades/icon.png",
+	"icon": "assets/bettervillagertrades/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"fabric-gametest": [
-			"io.github.brainage04.maxvillagertrades.MaxVillagerTradesGameTest"
+			"io.github.brainage04.bettervillagertrades.BetterVillagerTradesGameTest"
 		],
 		"fabric-client-gametest": [
-			"io.github.brainage04.maxvillagertrades.MaxVillagerTradesClientGameTest"
+			"io.github.brainage04.bettervillagertrades.BetterVillagerTradesClientGameTest"
 		]
 	}
 }

@@ -3,22 +3,22 @@ loaderVersion="[11,)"
 license="MIT"
 
 [[mods]]
-modId="maxvillagertrades"
+modId="bettervillagertrades"
 version="${version}"
-displayName="MaxVillagerTrades"
+displayName="BetterVillagerTrades"
 authors="brainage04"
-description='''A server-side mod that guarantees max-level enchantments on villager trade outputs, with separate gamerules for books and items.'''
+description='''Rerolls untraded villagers, protects player-selected trades, and guarantees max-level enchantment outputs.'''
 [[mixins]]
-config="maxvillagertrades.mixins.json"
+config="bettervillagertrades.mixins.json"
 
-[[dependencies.maxvillagertrades]]
+[[dependencies.bettervillagertrades]]
 modId="neoforge"
 type="required"
 versionRange="[${neoforge_version},26.3)"
 ordering="NONE"
 side="BOTH"
 
-[[dependencies.maxvillagertrades]]
+[[dependencies.bettervillagertrades]]
 modId="minecraft"
 type="required"
 versionRange="[${minecraft_version},26.3)"
