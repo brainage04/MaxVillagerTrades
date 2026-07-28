@@ -4,7 +4,7 @@ import io.github.brainage04.fabricmoddingconventions.ClientGameTestRecorder;
 import io.github.brainage04.fabricmoddingconventions.ClientGameTestServers;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
-import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
+
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -39,10 +39,7 @@ public final class BetterVillagerTradesClientGameTest implements FabricClientGam
 	@Override
 	public void runTest(ClientGameTestContext context) {
 		Properties serverProperties = ClientGameTestServers.flatServerProperties();
-		try (TestDedicatedServerContext server = context.worldBuilder().createServer(serverProperties)) {
-			ClientGameTestServers.connectToDedicatedServer(context, server, "Better Villager Trades visual GameTest");
-			try {
-				server.runOnServer(BetterVillagerTradesClientGameTest::prepareTrades);
+		ClientGameTestServers.withDedicatedServer(context, serverProperties, "Better Villager Trades visual GameTest", server -> { try { server.runOnServer(BetterVillagerTradesClientGameTest::prepareTrades);
 				ClientGameTestServers.assertClientWorldAndPlayerAvailable(context);
 				context.waitTicks(20);
 
@@ -76,12 +73,7 @@ public final class BetterVillagerTradesClientGameTest implements FabricClientGam
 				);
 				openInventoryScreen(context);
 				assertClientInventoryTrade(context, 1, DataComponents.ENCHANTMENTS);
-				context.waitTicks(60);
-			} finally {
-				server.runOnServer(BetterVillagerTradesClientGameTest::cleanupTrades);
-				ClientGameTestServers.disconnectFromDedicatedServer(context);
-			}
-		}
+				context.waitTicks(60); } finally { server.runOnServer(BetterVillagerTradesClientGameTest::cleanupTrades); } });
 	}
 
 	private static void prepareTrades(MinecraftServer server) {
